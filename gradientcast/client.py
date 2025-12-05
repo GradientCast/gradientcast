@@ -494,10 +494,6 @@ class GradientCastPulseAD(BaseClient):
     PRODUCTION_URL = "https://gradientcastad-prod-v1.eastus.inference.ml.azure.com/score"
     DEVELOPMENT_URL = "https://gradientcastad-v1.eastus.inference.ml.azure.com/score"
 
-    # FM endpoint URLs (for dev/testing when server-side auth not available)
-    FM_PRODUCTION_URL = "https://gradientcastfm-prod-v1.eastus.inference.ml.azure.com/score"
-    FM_DEVELOPMENT_URL = "https://gradientcastfm-v1.eastus.inference.ml.azure.com/score"
-
     @property
     def endpoint_name(self) -> str:
         return "GradientCastPulseAD"
@@ -512,9 +508,7 @@ class GradientCastPulseAD(BaseClient):
         frequency: str = "H",
         forecast_horizon: int = 3,
         validation_points: int = 3,
-        threshold_config: Optional[ThresholdConfig] = None,
-        fm_api_key: Optional[str] = None,
-        fm_endpoint_url: Optional[str] = None
+        threshold_config: Optional[ThresholdConfig] = None
     ) -> ADResponse:
         """Detect anomalies in time series data.
 
@@ -539,10 +533,6 @@ class GradientCastPulseAD(BaseClient):
             threshold_config: Custom threshold configuration. If None, uses:
                 - Default percentage threshold: 15%
                 - Default minimum value: 100,000 (3M for AllUp dimension)
-            fm_api_key: Optional FM endpoint API key (only needed for
-                       dev/testing when server-side auth is not configured).
-            fm_endpoint_url: Optional FM endpoint URL override (only needed
-                            for dev/testing).
 
         Returns:
             ADResponse with per-point detection results.
@@ -555,7 +545,7 @@ class GradientCastPulseAD(BaseClient):
 
         Example:
             >>> # Basic usage
-            >>> result = tsfad.detect(
+            >>> result = ad.detect(
             ...     time_series_data={
             ...         "AllUp": [
             ...             {"timestamp": "01/01/2025, 12:00 AM", "value": 1500000.0},
@@ -577,7 +567,7 @@ class GradientCastPulseAD(BaseClient):
             ...         }
             ...     }
             ... )
-            >>> result = tsfad.detect(time_series_data, threshold_config=config)
+            >>> result = ad.detect(time_series_data, threshold_config=config)
         """
         # Validate inputs
         if not time_series_data:
@@ -618,20 +608,6 @@ class GradientCastPulseAD(BaseClient):
         # Add threshold config if provided
         if threshold_config:
             payload["threshold_config"] = threshold_config.to_dict()
-
-        # Add FM credentials if provided (for dev/testing)
-        if fm_api_key:
-            payload["fm_api_key"] = fm_api_key
-
-            # Set FM endpoint URL
-            if fm_endpoint_url:
-                payload["fm_endpoint_url"] = fm_endpoint_url
-            else:
-                # Use matching environment
-                payload["fm_endpoint_url"] = (
-                    self.FM_PRODUCTION_URL if self.environment == "production"
-                    else self.FM_DEVELOPMENT_URL
-                )
 
         # Make request and parse response
         raw_response = self._make_request(payload)
