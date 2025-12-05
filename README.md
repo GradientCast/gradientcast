@@ -14,7 +14,7 @@
 
 ## What is GradientCast?
 
-GradientCast delivers production-ready AI services for time series analysis. Our foundation model approach eliminates the traditional ML pipeline—no training data preparation, no model tuning, no infrastructure management. Connect to our API and get results in seconds.
+GradientCast delivers production-ready AI services for time series forecasting and anomaly detection. Our foundation model approach eliminates the traditional ML pipeline—no training data preparation, no model tuning, no infrastructure management. Connect to our API and get results in seconds.
 
 | Capability | Service | Description |
 |------------|---------|-------------|
