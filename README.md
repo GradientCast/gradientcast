@@ -78,7 +78,7 @@ result = fm.forecast(
 print(result["revenue"])  # [1545.2, 1572.8, 1598.4, ...]
 ```
 
-### Anomaly Detection
+### Anomaly Detection (PulseAD)
 
 ```python
 from gradientcast import GradientCastPulseAD
@@ -96,6 +96,31 @@ result = ad.detect({
 
 if result.has_anomaly:
     print(f"Alert: {result.anomalies[0].percent_delta} deviation detected")
+```
+
+### Pattern-Based Anomaly Detection (DenseAD)
+
+```python
+from gradientcast import GradientCastDenseAD
+from datetime import datetime, timedelta
+
+ad = GradientCastDenseAD(api_key="your-api-key")
+
+# Generate 25 hourly data points (minimum required)
+base = datetime(2025, 1, 1)
+data = [
+    {"timestamp": (base + timedelta(hours=i)).strftime("%m/%d/%Y, %I:%M %p"),
+     "value": 3000000 + i * 10000}
+    for i in range(25)
+]
+data[-1]["value"] = 500000  # Inject anomaly at the end
+
+result = ad.detect(data)
+
+if result.has_anomaly:
+    print(f"Alert: {result.alert_severity} severity detected")
+    for point in result.anomalies:
+        print(f"  {point.datetime}: {point.actual_value}")
 ```
 
 ---

@@ -230,20 +230,27 @@ class GradientCastDenseAD(BaseClient):
     Detects anomalies in time series data using advanced density-based pattern
     analysis with configurable sensitivity and contiguity requirements.
 
+    Note: DenseAD requires at least 25 data points for accurate detection
+    due to rolling window feature calculations (12, 24, 48 hour windows).
+
     Example:
         >>> from gradientcast import GradientCastDenseAD
+        >>> from datetime import datetime, timedelta
         >>>
         >>> ad = GradientCastDenseAD(api_key="your-api-key")
-        >>> result = ad.detect([
-        ...     {"timestamp": "01/01/2025, 12:00 AM", "value": 1500000},
-        ...     {"timestamp": "01/01/2025, 01:00 AM", "value": 1520000},
-        ...     # ... more data points
-        ... ])
         >>>
+        >>> # Generate 25+ hourly data points
+        >>> base = datetime(2025, 1, 1)
+        >>> data = [
+        ...     {"timestamp": (base + timedelta(hours=i)).strftime("%m/%d/%Y, %I:%M %p"),
+        ...      "value": 3000000 + i * 10000}
+        ...     for i in range(25)
+        ... ]
+        >>> data[-1]["value"] = 500000  # Inject anomaly
+        >>>
+        >>> result = ad.detect(data)
         >>> if result.has_anomaly:
         ...     print(f"Alert: {result.alert_severity}")
-        ...     for point in result.anomalies:
-        ...         print(f"  {point.timestamp}: {point.value}")
 
     Args:
         api_key: Your GradientCast DenseAD API key.
@@ -260,6 +267,9 @@ class GradientCastDenseAD(BaseClient):
     # Default valley thresholds
     DEFAULT_VALLEY_THRESHOLD_ALLUP = 3_000_000
     DEFAULT_VALLEY_THRESHOLD_NONALLUP = 150_000
+
+    # Minimum data points required for DenseAD (rolling windows use up to 48 hours)
+    MIN_DATA_POINTS = 25
 
     @property
     def endpoint_name(self) -> str:
@@ -305,8 +315,10 @@ class GradientCastDenseAD(BaseClient):
     ) -> DenseADResponse:
         """Detect anomalies in time series data.
 
+        Note: Requires at least 25 data points for accurate detection.
+
         Args:
-            data: List of data points. Each point should have:
+            data: List of data points (minimum 25 required). Each point should have:
                 - "timestamp": Datetime string (format: "MM/DD/YYYY, HH:MM AM/PM")
                 - "value": Numeric value
             dimension_name: Dimension identifier (affects default thresholds).
@@ -326,23 +338,22 @@ class GradientCastDenseAD(BaseClient):
             DenseADResponse with alert status and detailed timeline.
 
         Raises:
-            ValidationError: If data is empty or malformed.
+            ValidationError: If data is empty, malformed, or has fewer than 25 points.
             AuthenticationError: If API key is invalid.
             TimeoutError: If request times out.
             APIError: For other API errors.
 
         Example:
-            >>> result = ad.detect(
-            ...     data=[
-            ...         {"timestamp": "01/01/2025, 12:00 AM", "value": 1500000},
-            ...         {"timestamp": "01/01/2025, 01:00 AM", "value": 1520000},
-            ...         {"timestamp": "01/01/2025, 02:00 AM", "value": 100000},  # Anomaly
-            ...         # ... more data points
-            ...     ],
-            ...     contamination=0.05,
-            ...     min_contiguous_anomalies=2
-            ... )
+            >>> from datetime import datetime, timedelta
+            >>> base = datetime(2025, 1, 1)
+            >>> data = [
+            ...     {"timestamp": (base + timedelta(hours=i)).strftime("%m/%d/%Y, %I:%M %p"),
+            ...      "value": 3000000 + i * 10000}
+            ...     for i in range(25)
+            ... ]
+            >>> data[-1]["value"] = 500000  # Inject anomaly
             >>>
+            >>> result = ad.detect(data, contamination=0.05)
             >>> print(f"Status: {result.alert_status}")
             >>> print(f"Severity: {result.alert_severity}")
         """
@@ -352,6 +363,12 @@ class GradientCastDenseAD(BaseClient):
 
         if not isinstance(data, list):
             raise ValidationError("data must be a list of dictionaries")
+
+        if len(data) < self.MIN_DATA_POINTS:
+            raise ValidationError(
+                f"DenseAD requires at least {self.MIN_DATA_POINTS} data points for accurate "
+                f"detection due to rolling window calculations. Received {len(data)} points."
+            )
 
         if not 0.0 < contamination <= 0.5:
             raise ValidationError("contamination must be between 0.0 and 0.5")
